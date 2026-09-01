@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sheet Layout</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-viewport">
+    <div class="app-container">
+      
+      <!-- LEFT SIDEBAR -->
+      <aside class="sidebar left-sidebar">
+        <!-- File Name & Actions Section -->
+        <div class="file-header-group">
+          <input type="text" id="fileNameInput" class="file-input" value="Untitled Sheet" placeholder="Untitled Sheet" />
+          <button class="btn btn-primary" id="previewBtn" title="Preview canvas without UI border framing">Preview Layout</button>
+          <div class="export-button-group">
+            <button class="btn btn-export" id="exportSvgBtn" title="Export as scalable vector graphics">Export SVG</button>
+            <button class="btn btn-export" id="exportPngBtn" title="Export as image">Export PNG</button>
+          </div>
+        </div>
+        
+        <div class="panel-section layers-section">
+          <h2 class="section-title">Layers</h2>
+          <div class="layers-box" id="layersBox"></div>
+        </div>
+
+        <div class="button-group flex-col">
+          <div class="row-btn-split">
+            <button class="btn" id="addRowBtn">Add Row</button>
+            <button class="btn" id="addHalfRowBtn">Add Half Row</button>
+          </div>
+          <button class="btn margin-top-sm" id="deleteRowBtn">Delete Row</button>
+        </div>
+      </aside>
+
+      <!-- MAIN CANVAS AREA -->
+      <main class="canvas-area" id="canvasArea">
+        <div id="rowsContainer"></div>
+        <button class="add-btn-dashed" id="canvasAddBtn" aria-label="Add Row">+</button>
+      </main>
+
+      <!-- RIGHT SIDEBAR -->
+      <aside class="sidebar right-sidebar">
+        
+        <!-- Shapes Panel -->
+        <div class="panel-section">
+          <h2 class="section-title">Shapes</h2>
+          <div class="shapes-grid-container">
+            <div class="shapes-grid" id="shapesGrid"></div>
+          </div>
+          
+          <div class="button-group margin-top-sm">
+            <button class="btn" id="addShapeBtn">Add Shape</button>
+            <button class="btn" id="deleteShapeBtn">Delete Shape</button>
+            <input type="file" id="shapeFileInput" accept="image/png, .png, image/jpeg, .jpg, .jpeg" style="display: none;" />
+          </div>
+        </div>
+
+        <!-- Colors Panel -->
+        <div class="panel-section">
+          <h2 class="section-title">Colors</h2>
+          <div class="colors-grid-container">
+            <div class="colors-grid" id="colorsGrid"></div>
+          </div>
+          
+          <div class="button-group margin-top-sm">
+            <button class="btn" id="addColorBtn">Add Color</button>
+            <button class="btn" id="deleteColorBtn">Delete Color</button>
+          </div>
+        </div>
+
+        <!-- Settings Panel -->
+        <div class="panel-section settings-section">
+          <h2 class="section-title row-settings-title">Settings</h2>
+          
+          <div class="settings-card" id="settingsBox">
+            <!-- Cells in row -->
+            <div class="stepper-control">
+              <span class="control-label">Cells in row</span>
+              <div class="stepper-group">
+                <button class="step-btn" id="cellsDecBtn" aria-label="Decrease cells">−</button>
+                <input type="number" id="cellsVal" min="0" value="0" />
+                <button class="step-btn" id="cellsIncBtn" aria-label="Increase cells">+</button>
+              </div>
+            </div>
+
+            <!-- Cell overall size -->
+            <div class="stepper-control">
+              <span class="control-label">Cell size</span>
+              <div class="stepper-group">
+                <button class="step-btn" id="sizeDecBtn" aria-label="Decrease size">−</button>
+                <span class="step-value" id="sizeVal">M</span>
+                <button class="step-btn" id="sizeIncBtn" aria-label="Increase size">+</button>
+              </div>
+            </div>
+
+            <!-- Horizontal Scale (Scale X) -->
+            <div class="slider-control">
+              <div class="slider-header">
+                <span class="control-label">Scale X (Width)</span>
+                <span class="slider-val-badge" id="scaleXVal">1.0x</span>
+              </div>
+              <input type="range" id="scaleXInput" class="blue-slider" min="0.2" max="2.0" step="0.1" value="1.0" />
+            </div>
+
+            <!-- Vertical Scale (Scale Y) -->
+            <div class="slider-control">
+              <div class="slider-header">
+                <span class="control-label">Scale Y (Height)</span>
+                <span class="slider-val-badge" id="scaleYVal">1.0x</span>
+              </div>
+              <input type="range" id="scaleYInput" class="blue-slider" min="0.2" max="2.0" step="0.1" value="1.0" />
+            </div>
+
+            <!-- Spacing -->
+            <div class="slider-control">
+              <div class="slider-header">
+                <span class="control-label">Spacing</span>
+                <span class="slider-val-badge" id="cellSpacingVal">16px</span>
+              </div>
+              <input type="range" id="cellSpacing" class="blue-slider" min="0" max="100" value="16" />
+            </div>
+          </div>
+        </div>
+
+      </aside>
+
+    </div>
+  </div>
+
+  <!-- FULLSCREEN PREVIEW MODAL -->
+  <div class="modal-overlay" id="previewModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" id="previewModalTitle">Sheet Preview</h3>
+        <button class="modal-close-btn" id="closePreviewBtn" aria-label="Close preview">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="preview-svg-container" id="previewContainer"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD COLOR MODAL -->
+  <div class="modal-overlay" id="colorModal">
+    <div class="modal-content" style="max-width: 400px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Add Custom Color</h3>
+        <button class="modal-close-btn" id="closeColorModalBtn" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body" style="flex-direction: column; gap: 16px; align-items: stretch; background: #ffffff;">
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <input type="color" id="modalColorPicker" value="#3b82f6" style="width: 50px; height: 42px; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; padding: 2px; background: #fff;" />
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+            <label class="control-label" for="modalColorNameInput">Color Name / Code</label>
+            <input type="text" id="modalColorNameInput" class="file-input" style="padding: 8px 12px; color: #0f172a;" placeholder="e.g. C1" maxlength="6" />
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
+          <button class="btn" id="cancelColorBtn" style="width: auto; padding: 8px 16px;">Cancel</button>
+          <button class="btn btn-primary" id="doneColorBtn" style="width: auto; padding: 8px 16px; background: #2563eb; color: #ffffff; border-color: #2563eb;">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
