@@ -15,6 +15,8 @@ Controls & Scaling: Adjust cell counts, overall item sizing (XS to XL), horizont
 
 Undo/Redo Support: Easily backtrack or reapply changes with full history tracking.
 
+Multi Selection: Select multiple rows and individual cells for easy editability.  
+
 Export & Preview: Preview your layout in a clean modal view or instantly export your final composition as a SVG or PNG file.
 
 ---
@@ -24,8 +26,10 @@ Export & Preview: Preview your layout in a clean modal view or instantly export 
 | `Ctrl + Z / Cmd + Z` | Undo last action |
 | `Ctrl + Shift + Z or Ctrl + Y / Cmd + Shift + Z` | Redo action |
 | `Ctrl + D / Cmd + D` | Duplicate selected rows |
+| ` Shift / Cmd ` | Select more than one item at once |
 | `Arrow Keys (Up, Down, Left, Right)` | Navigate smoothly between rows and grid cells |
 | `Delete / Backspace` | Remove selected cells or shapes |
 | `Escape` | Close active modals or preview screens |
+
 
 
