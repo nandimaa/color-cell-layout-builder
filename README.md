@@ -2,6 +2,8 @@
 
 Sheet Layout is a web-based visual canvas application designed for designing, customizing, and exporting structured color cell sheets. Built entirely with vanilla HTML, CSS, and JavaScript, should run smoothly in any browser and integrates seamlessly with continuous deployment workflows with GitHub and Netlify.
 
+
+
 ---
 **Features**
 
@@ -17,7 +19,7 @@ Undo/Redo Support: Easily backtrack or reapply changes with full history trackin
 
 Multi Selection: Select multiple rows and individual cells for easy editability.  
 
-Export & Preview: Preview your layout in a clean modal view or instantly export your final composition as a SVG or PNG file.
+Import, Export & Preview: Import existing SVG layouts, preview your composition in a clean view, or instantly export your final composition as an SVG or PNG file. 
 
 ---
 **Shortcut Keys**
@@ -27,9 +29,13 @@ Export & Preview: Preview your layout in a clean modal view or instantly export 
 | `Ctrl + Shift + Z or Ctrl + Y / Cmd + Shift + Z` | Redo action |
 | `Ctrl + D / Cmd + D` | Duplicate selected rows |
 | ` Shift / Cmd ` | Select more than one item at once |
+| ` P ` | Open layout preview mode |
 | `Arrow Keys (Up, Down, Left, Right)` | Navigate smoothly between rows and grid cells |
 | `Delete / Backspace` | Remove selected cells or shapes |
 | `Escape` | Close active modals or preview screens |
 
+---
+_Designed by Nandi using Figma & Adobe Illustrator_
 
+_HTML, CSS, JavaScript code by Google Gemini_
 
