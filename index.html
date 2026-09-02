@@ -20,6 +20,10 @@
             <button class="btn btn-export" id="exportSvgBtn" title="Export as scalable vector graphics">Export SVG</button>
             <button class="btn btn-export" id="exportPngBtn" title="Export as image">Export PNG</button>
           </div>
+          <div class="export-button-group margin-top-sm">
+            <button class="btn btn-export" id="importSvgBtn" title="Import layout from an SVG file">Import SVG</button>
+            <input type="file" id="importSvgFileInput" accept="image/svg+xml, .svg" style="display: none;" />
+          </div>
         </div>
         
         <div class="panel-section layers-section">
@@ -103,7 +107,7 @@
                 <span class="control-label">Scale X (Width)</span>
                 <span class="slider-val-badge" id="scaleXVal">1.0x</span>
               </div>
-              <input type="range" id="scaleXInput" class="blue-slider" min="0.2" max="2.0" step="0.1" value="1.0" />
+              <input type="range" id="scaleXInput" class="blue-slider" min="0.2" max="3.0" step="0.1" value="1.0" />
             </div>
 
             <!-- Vertical Scale (Scale Y) -->
@@ -112,7 +116,7 @@
                 <span class="control-label">Scale Y (Height)</span>
                 <span class="slider-val-badge" id="scaleYVal">1.0x</span>
               </div>
-              <input type="range" id="scaleYInput" class="blue-slider" min="0.2" max="2.0" step="0.1" value="1.0" />
+              <input type="range" id="scaleYInput" class="blue-slider" min="0.2" max="3.0" step="0.1" value="1.0" />
             </div>
 
             <!-- Spacing -->
