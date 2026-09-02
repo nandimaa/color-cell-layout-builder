@@ -3,7 +3,7 @@ const DEFAULT_GRAY = "#b0b0b0";
 
 let rowCounter = 0;
 let selectedRowIds = new Set(); // Tracks multiple selected rows
-let lastClickedRowId =    null;    // For Shift-click range selections
+let lastClickedRowId = null;    // For Shift-click range selections
 
 // Multi-cell selection tracking
 let selectedCellElements = new Set(); 
@@ -668,6 +668,233 @@ function exportPNG() {
 if (exportSvgBtn) exportSvgBtn.addEventListener("click", exportSVG);
 if (exportPngBtn) exportPngBtn.addEventListener("click", exportPNG);
 
+// --- IMPORTED SVG RENDER HELPER ---
+function renderImportedSVGToRow(currentRowId, shapesInRow, index, selectedColor, SHAPE_DEFINITIONS, applyColorToCell) {
+  const canvasRow = document.getElementById(`canvas-${currentRowId}`);
+  if (canvasRow) {
+    canvasRow.innerHTML = "";
+    canvasRow.classList.add("full-row-import"); 
+    
+    shapesInRow.forEach((shapeData, sIdx) => {
+      const shapeKey = `imported_${index}_${sIdx}`;
+      SHAPE_DEFINITIONS[shapeKey] = `<svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="none">${shapeData.markup}</svg>`;
+
+      const shapeWrapper = document.createElement("div");
+      shapeWrapper.className = "placed-shape";
+      shapeWrapper.draggable = true;
+      
+      shapeWrapper.style.width = "100%";
+      shapeWrapper.style.height = "100%";
+
+      shapeWrapper.innerHTML = `
+        <div class="placed-shape-inner" style="width: 100%; height: 100%;">
+          ${SHAPE_DEFINITIONS[shapeKey]}
+        </div>
+      `;
+
+      canvasRow.appendChild(shapeWrapper);
+      applyColorToCell(shapeWrapper, shapeData.color || selectedColor);
+    });
+  }
+}
+
+// --- SVG LAYOUT IMPORT LOGIC ---
+const importSvgBtn = document.getElementById("importSvgBtn");
+const importSvgFileInput = document.getElementById("importSvgFileInput");
+
+if (importSvgBtn && importSvgFileInput) {
+  importSvgBtn.addEventListener("click", () => importSvgFileInput.click());
+
+  importSvgFileInput.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith(".svg") && file.type !== "image/svg+xml") {
+      alert("Please upload a valid SVG file.");
+      e.target.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        captureState();
+        const svgText = event.target.result;
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(svgText, "image/svg+xml");
+
+        const parserError = doc.querySelector("parsererror");
+        if (parserError) {
+          throw new Error("Invalid SVG file format.");
+        }
+
+        rowsContainer.innerHTML = "";
+        layersBox.innerHTML = "";
+        rowCounter = 0;
+        Object.keys(rowSettings).forEach(k => delete rowSettings[k]);
+        selectedRowIds.clear();
+        clearSelectedCells();
+
+        const baseName = file.name.replace(/\.[^/.]+$/, "");
+        if (fileNameInput) {
+          fileNameInput.value = baseName;
+          fileNameInput.dispatchEvent(new Event("input"));
+        }
+
+        const rootSvg = doc.querySelector("svg");
+        if (!rootSvg) throw new Error("No SVG root found.");
+
+        let candidateEls = Array.from(rootSvg.querySelectorAll(":scope > g, :scope > svg > g"));
+        
+        if (candidateEls.length === 0) {
+          const shapeSelectors = ":scope > path, :scope > rect, :scope > circle, :scope > ellipse, :scope > polygon, :scope > polyline, :scope > text, :scope > image, :scope > use, :scope > svg > path, :scope > svg > rect, :scope > svg > circle, :scope > svg > ellipse, :scope > svg > polygon, :scope > svg > polyline";
+          candidateEls = Array.from(rootSvg.querySelectorAll(shapeSelectors));
+        }
+
+        if (candidateEls.length === 0) {
+          addRow(false);
+          const firstRowId = `row-${rowCounter}`;
+          const shapeMarkup = `<svg viewBox="0 0 100 100">${rootSvg.innerHTML}</svg>`;
+          rowSettings[firstRowId].cellCount = 1;
+          syncRowCells(firstRowId);
+          
+          const canvasRow = document.getElementById(`canvas-${firstRowId}`);
+          if (canvasRow && canvasRow.children.length > 0) {
+            const cell = canvasRow.children[0];
+            const inner = cell.querySelector(".placed-shape-inner");
+            if (inner) inner.innerHTML = shapeMarkup;
+          }
+        } else {
+          const rowMap = new Map();
+
+          candidateEls.forEach((el) => {
+            const transformAttr = el.getAttribute("transform") || "";
+            let xPos = parseFloat(el.getAttribute("x")) || parseFloat(el.getAttribute("cx")) || 0;
+            let yPos = parseFloat(el.getAttribute("y")) || parseFloat(el.getAttribute("cy")) || 0;
+
+            const translateMatch = transformAttr.match(/translate\s*\(\s*([^,\s]+)[,\s]*([^,\s]*)\s*\)/);
+            if (translateMatch) {
+              xPos = parseFloat(translateMatch[1]) || xPos;
+              yPos = parseFloat(translateMatch[2]) || yPos;
+            } else {
+              const matrixMatch = transformAttr.match(/matrix\s*\(\s*[^,\s]+,[^,\s]+,[^,\s]+,[^,\s]+,\s*([^,\s]+),\s*([^,\s]+)\s*\)/);
+              if (matrixMatch) {
+                xPos = parseFloat(matrixMatch[1]) || xPos;
+                yPos = parseFloat(matrixMatch[2]) || yPos;
+              }
+            }
+
+            let matchedY = null;
+            for (let existingY of rowMap.keys()) {
+              if (Math.abs(existingY - yPos) < 20) {
+                matchedY = existingY;
+                break;
+              }
+            }
+
+            if (matchedY === null) {
+              matchedY = yPos;
+              rowMap.set(matchedY, []);
+            }
+
+            const innerSvg = el.querySelector("svg");
+            const innerMarkup = innerSvg ? innerSvg.innerHTML : el.outerHTML;
+            const coloredEl = el.querySelector("[fill]") || el;
+            const fillColor = coloredEl ? coloredEl.getAttribute("fill") : selectedColor;
+
+            rowMap.get(matchedY).push({
+              x: xPos,
+              markup: innerMarkup,
+              color: fillColor && fillColor !== "none" ? fillColor : selectedColor
+            });
+          });
+
+          const sortedY = Array.from(rowMap.keys()).sort((a, b) => a - b);
+
+          if (sortedY.length === 0) {
+            addRow(false);
+          } else {
+            sortedY.forEach((y, index) => {
+              const shapesInRow = rowMap.get(y);
+              shapesInRow.sort((a, b) => a.x - b.x);
+
+              addRow(false);
+              const currentRowId = `row-${rowCounter}`;
+              
+              rowSettings[currentRowId].cellCount = shapesInRow.length;
+              if (shapesInRow.length > 0 && shapesInRow[0].color) {
+                rowSettings[currentRowId].color = shapesInRow[0].color;
+              }
+
+              const canvasRow = document.getElementById(`canvas-${currentRowId}`);
+              if (canvasRow) {
+                canvasRow.innerHTML = "";
+                shapesInRow.forEach((shapeData, sIdx) => {
+                  const shapeKey = `imported_${index}_${sIdx}`;
+                  SHAPE_DEFINITIONS[shapeKey] = `<svg viewBox="0 0 100 100">${shapeData.markup}</svg>`;
+
+                  const shapeWrapper = document.createElement("div");
+                  shapeWrapper.className = "placed-shape";
+                  shapeWrapper.draggable = true;
+                  shapeWrapper.addEventListener("dragstart", handleCellDragStart);
+                  shapeWrapper.addEventListener("dragover", handleCellDragOver);
+                  shapeWrapper.addEventListener("dragleave", handleCellDragLeave);
+                  shapeWrapper.addEventListener("drop", handleCellDrop);
+                  shapeWrapper.addEventListener("dragend", handleCellDragEnd);
+
+                  shapeWrapper.dataset.sizeIndex = 2;
+                  shapeWrapper.dataset.scaleX = 1.0;
+                  shapeWrapper.dataset.scaleY = 1.0;
+
+                  shapeWrapper.innerHTML = `
+                    <div class="placed-shape-inner">
+                      ${SHAPE_DEFINITIONS[shapeKey]}
+                    </div>
+                  `;
+
+                  const deleteBadge = document.createElement("button");
+                  deleteBadge.className = "cell-delete-btn";
+                  deleteBadge.innerHTML = "&times;";
+                  deleteBadge.title = "Delete this cell";
+                  deleteBadge.addEventListener("click", (evt) => {
+                    evt.stopPropagation();
+                    captureState();
+                    removeCell(shapeWrapper, currentRowId);
+                  });
+                  shapeWrapper.appendChild(deleteBadge);
+
+                  shapeWrapper.addEventListener("click", (evt) => {
+                    evt.stopPropagation();
+                    if (!selectedRowIds.has(currentRowId)) {
+                      selectRow(currentRowId, evt);
+                    }
+                    selectCell(shapeWrapper, evt);
+                  });
+
+                  canvasRow.appendChild(shapeWrapper);
+                  applyColorToCell(shapeWrapper, shapeData.color || selectedColor);
+                  applyShapeTransform(shapeWrapper);
+                });
+              }
+            });
+          }
+        }
+
+        renderColorsGrid();
+        if (rowsContainer.children.length > 0) {
+          const firstRow = rowsContainer.children[0];
+          selectRow(firstRow.dataset.rowId, {});
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Failed to parse and import SVG file: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  });
+}
+
 // --- ROW & CELL MANAGEMENT ---
 function clearAllSelections() {
   selectedRowIds.clear();
@@ -1264,25 +1491,9 @@ function renderColorsGrid() {
     const swatch = document.createElement("span");
     swatch.className = "color-swatch";
     swatch.style.backgroundColor = colorObj.hex;
+    swatch.title = "Double click to rename";
 
-    const deleteBadge = document.createElement("button");
-    deleteBadge.className = "card-delete-btn";
-    deleteBadge.innerHTML = "&times;";
-    deleteBadge.title = `Delete ${colorObj.name}`;
-    deleteBadge.addEventListener("click", (e) => {
-      e.stopPropagation();
-      removeColorFromPanel(colorObj.hex);
-    });
-
-    card.appendChild(swatch);
-    card.appendChild(deleteBadge);
-
-    const label = document.createElement("span");
-    label.className = "color-name";
-    label.textContent = colorObj.name;
-    label.title = "Double click to rename";
-
-    label.addEventListener("dblclick", (e) => {
+    swatch.addEventListener("dblclick", (e) => {
       e.stopPropagation();
       const currentName = colorObj.name;
       const input = document.createElement("input");
@@ -1294,7 +1505,7 @@ function renderColorsGrid() {
       const commitChange = () => {
         const val = input.value.trim().toUpperCase();
         if (val !== currentName) {
-          captureState();
+          captureState(); // Saves state for Undo/Redo support
           colorObj.name = val || currentName;
         }
         renderColorsGrid();
@@ -1314,6 +1525,22 @@ function renderColorsGrid() {
       input.focus();
       input.select();
     });
+
+    const deleteBadge = document.createElement("button");
+    deleteBadge.className = "card-delete-btn";
+    deleteBadge.innerHTML = "&times;";
+    deleteBadge.title = `Delete ${colorObj.name}`;
+    deleteBadge.addEventListener("click", (e) => {
+      e.stopPropagation();
+      removeColorFromPanel(colorObj.hex);
+    });
+
+    card.appendChild(swatch);
+    card.appendChild(deleteBadge);
+
+    const label = document.createElement("span");
+    label.className = "color-name";
+    label.textContent = colorObj.name;
 
     colorItem.appendChild(card);
     colorItem.appendChild(label);
@@ -1414,7 +1641,7 @@ if (deleteColorBtn) {
 // --- SHAPE DEFINITIONS & PANELS ---
 const SHAPE_DEFINITIONS = {
   petal: `<svg viewBox="0 0 100 100">
-    <path d="M 50,10 C 82,30 82,70 50,90 C 18,70 18,30 50,10 Z" fill="${DEFAULT_GRAY}" />
+    <path d="M 50,8 C 78,28 84,65 50,92 C 16,65 22,28 50,8 Z" fill="${DEFAULT_GRAY}" />
   </svg>`,
 
   tallOval: `<svg viewBox="0 0 100 100">
@@ -1799,6 +2026,12 @@ function ungroupSelectedRows() {
 // --- GLOBAL KEYBOARD SHORTCUTS & NAVIGATION ---
 document.addEventListener("keydown", (e) => {
   const isInput = document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA";
+
+  if (e.key.toLowerCase() === 'p' && !isInput) {
+    e.preventDefault();
+    openPreviewModal();
+    return;
+  }
   
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !isInput) {
     e.preventDefault();
